@@ -28,16 +28,16 @@ protected:
 	
 	TArray<FName> MeshInstancedSockets;
 
-	TArray<FInstanceSocketCheck> InstanceSocketCheck;
+	TArray<FInstanceSocketCheck> InstanceSocketsCheck;
 	
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-	bool IsValidSocket(UInstancedStaticMeshComponent* HitComponent, const FName& Filter, const FName& SocketName);
+	bool IsValidSocket(UInstancedStaticMeshComponent* HitComponent, int32 Index, const FName& Filter, const FName& SocketName);
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "TUTORIAL")
-	void DestroyInstance(FVector HitPoint);
+	void DestroyInstance(const FBuildingSocketData& BuildingSocketData);
 
 	UFUNCTION(BlueprintCallable, Category = "TUTORIAL")
 	FTransform GetInstancedSocketTransform(UInstancedStaticMeshComponent* InstancedComponent, int32 InstanceIndex, const FName& SocketName);

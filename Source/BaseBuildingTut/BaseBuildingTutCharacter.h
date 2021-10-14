@@ -65,6 +65,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "TUTORIAL")
 	void SpawnBuilding();
+	UFUNCTION(BlueprintCallable, Category = "TUTORIAL")
+	void DestroyBuildingInstance();
 
 	virtual void Tick(float DeltaSeconds) override;
 	

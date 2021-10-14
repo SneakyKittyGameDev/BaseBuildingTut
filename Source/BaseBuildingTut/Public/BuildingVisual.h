@@ -51,5 +51,6 @@ protected:
 public:
 	void SetBuildPosition(const FHitResult& HitResult);
 	void SpawnBuilding();
+	void DestroyInstance(const FHitResult& HitResult);
 	void CycleMesh();
 };

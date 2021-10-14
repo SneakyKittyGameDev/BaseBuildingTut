@@ -134,6 +134,21 @@ void ABuildingVisual::SpawnBuilding()
 	}
 }
 
+void ABuildingVisual::DestroyInstance(const FHitResult& HitResult)
+{
+	if (InteractingBuilding)
+	{
+		if (UInstancedStaticMeshComponent* InstancedStaticMeshComponent = Cast<UInstancedStaticMeshComponent>(HitResult.GetComponent()))
+		{
+			FBuildingSocketData BuildingSocketData;
+			BuildingSocketData.InstancedComponent = InstancedStaticMeshComponent;
+			BuildingSocketData.Index = HitResult.Item;
+			
+			InteractingBuilding->DestroyInstance(BuildingSocketData);
+		}
+	}
+}
+
 void ABuildingVisual::CycleMesh()
 {
 	if (bReturnedMesh)

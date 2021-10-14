@@ -110,6 +110,14 @@ void ABaseBuildingTutCharacter::SpawnBuilding()
 	}
 }
 
+void ABaseBuildingTutCharacter::DestroyBuildingInstance()
+{
+	if (bInBuildMode && Builder)
+	{
+		Builder->DestroyInstance(PerformLineTrace());
+	}
+}
+
 void ABaseBuildingTutCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);

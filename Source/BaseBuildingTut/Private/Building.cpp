@@ -24,36 +24,34 @@ ABuilding::ABuilding()
 void ABuilding::BeginPlay()
 {
 	Super::BeginPlay();
+
+	FInstanceSocketCheck InstanceSocket;
+	InstanceSocket.InstancedComponent = FoundationInstancedMesh;
+	InstanceSocketsCheck.Add(InstanceSocket);
+
+	InstanceSocket.InstancedComponent = WallInstancedMesh;
+	InstanceSocketsCheck.Add(InstanceSocket);
+
+	InstanceSocket.InstancedComponent = CeilingInstancedMesh;
+	InstanceSocketsCheck.Add(InstanceSocket);
+	
 	FBuildingSocketData BuildingSocketData;
 	BuildingSocketData.Index = 0;
 	BuildingSocketData.InstancedComponent = FoundationInstancedMesh;
 	BuildingSocketData.SocketName = NAME_None;
-	BuildingSocketData.SocketTransform = FTransform();
+	BuildingSocketData.SocketTransform = GetActorTransform();
 	AddInstance(BuildingSocketData, EBuildType::Foundation);
 	
 	MeshInstancedSockets = FoundationInstancedMesh->GetAllSocketNames();
 	MeshInstancedSockets.Append(WallInstancedMesh->GetAllSocketNames());
 	MeshInstancedSockets.Append(CeilingInstancedMesh->GetAllSocketNames());
-
-	FInstanceSocketCheck InstanceSocket;
-	
-	InstanceSocket.InstancedComponent = FoundationInstancedMesh;
-	InstanceSocketCheck.Add(InstanceSocket);
-
-	InstanceSocket.InstancedComponent = WallInstancedMesh;
-	InstanceSocketCheck.Add(InstanceSocket);
-
-	InstanceSocket.InstancedComponent = CeilingInstancedMesh;
-	InstanceSocketCheck.Add(InstanceSocket);
 }
 
-void ABuilding::DestroyInstance(FVector HitPoint)
+void ABuilding::DestroyInstance(const FBuildingSocketData& BuildingSocketData)
 {
-	const TArray<int32> HitIndexes = FoundationInstancedMesh->GetInstancesOverlappingSphere(HitPoint, 1.0f);
-
-	if (HitIndexes.Num() > 0)
+	if (BuildingSocketData.InstancedComponent)
 	{
-		FoundationInstancedMesh->RemoveInstance(HitIndexes[0]);
+		BuildingSocketData.InstancedComponent->RemoveInstance(BuildingSocketData.Index);
 	}
 }
 
@@ -110,7 +108,7 @@ int32 ABuilding::GetHitIndex(const FHitResult& HitResult)
 	return HitResult.Item;
 }
 
-bool ABuilding::IsValidSocket(UInstancedStaticMeshComponent* HitComponent, const FName& Filter, const FName& SocketName)
+bool ABuilding::IsValidSocket(UInstancedStaticMeshComponent* HitComponent, int32 Index, const FName& Filter, const FName& SocketName)
 {
 	bool bSuccess = true;
 	if (!HitComponent->DoesSocketExist(SocketName))
@@ -126,6 +124,27 @@ bool ABuilding::IsValidSocket(UInstancedStaticMeshComponent* HitComponent, const
 		bSuccess = false;
 	}
 
+	for (const FInstanceSocketCheck& InstanceSocketCheck : InstanceSocketsCheck)
+	{
+		if (InstanceSocketCheck.InstancedComponent == HitComponent)
+		{
+			for (const FBuildIndexSockets& BuildIndexSockets : InstanceSocketCheck.InstanceSocketInformation)
+			{
+				if (BuildIndexSockets.Index == Index)
+				{
+					for (const FSocketInformation& SocketInformation : BuildIndexSockets.SocketsInformation)
+					{
+						if (SocketInformation.SocketName == SocketName && SocketInformation.bSocketInUse)
+						{
+							bSuccess = false;
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+	
 	return bSuccess;
 }
 
@@ -140,7 +159,7 @@ FBuildingSocketData ABuilding::GetHitSocketTransform(const FHitResult& HitResult
 		{
 			for (const FName& SocketName : MeshInstancedSockets)
 			{
-				if (IsValidSocket(HitComponent, Filter, SocketName))
+				if (IsValidSocket(HitComponent, HitIndex, Filter, SocketName))
 				{
 					FTransform SocketTransform = GetInstancedSocketTransform(HitComponent, HitIndex, SocketName);
 					if (FVector::Distance(SocketTransform.GetLocation(), HitResult.Location) <= ValidHitDistance)
@@ -160,6 +179,54 @@ FBuildingSocketData ABuilding::GetHitSocketTransform(const FHitResult& HitResult
 
 void ABuilding::AddInstance(const FBuildingSocketData& BuildingSocketData, EBuildType BuildType)
 {
+	for (FInstanceSocketCheck& InstanceSocket : InstanceSocketsCheck)
+	{
+		if (InstanceSocket.InstancedComponent == BuildingSocketData.InstancedComponent)
+		{
+			bool bFoundMatchingIndex = false;
+
+			for (FBuildIndexSockets& IndexSockets : InstanceSocket.InstanceSocketInformation)
+			{
+				if (IndexSockets.Index == BuildingSocketData.Index)
+				{
+					bFoundMatchingIndex = true;
+					for (FSocketInformation& SocketInformation : IndexSockets.SocketsInformation)
+					{
+						if (SocketInformation.SocketName == BuildingSocketData.SocketName)
+						{
+							//UE_LOG(LogTemp, Warning, TEXT("Setting Socket %s to TRUE"), *SocketInformation.SocketName);
+							SocketInformation.bSocketInUse = true;
+							break;
+						}
+					}
+					break;
+				}
+			}
+
+			if (!bFoundMatchingIndex)
+			{
+				FBuildIndexSockets BuildIndexSockets;
+				BuildIndexSockets.Index = BuildingSocketData.Index;
+			
+				FSocketInformation SocketInformation;
+				for (const FName& SocketName : InstanceSocket.InstancedComponent->GetAllSocketNames())
+				{
+					SocketInformation.SocketName = SocketName;
+					SocketInformation.bSocketInUse = false;
+					if (SocketName == BuildingSocketData.SocketName)
+					{
+						SocketInformation.bSocketInUse = true;
+					}
+					BuildIndexSockets.SocketsInformation.Add(SocketInformation);
+				}
+			
+				InstanceSocket.InstanceSocketInformation.Add(BuildIndexSockets);
+			}
+		}
+	}
+
+
+	
 	switch (BuildType)
 	{
 		case EBuildType::Foundation : FoundationInstancedMesh->AddInstanceWorldSpace(BuildingSocketData.SocketTransform); break;
